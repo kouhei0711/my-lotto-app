@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>ロト7 相棒ジェネレータ</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-title">
+      <div class="app-title__name">ロト7 相棒ジェネレータ</div>
+      <div class="app-title__sub">織り込み済み（第1回〜第666回） / 追加して学習</div>
+    </div>
+    <button id="btn-about" class="btn btn--ghost" aria-label="このアプリについて">？</button>
+  </header>
+
+  <main class="app-main">
+    <!-- HOME -->
+    <section id="view-home" class="view view--active" aria-label="ホーム">
+      <div class="card">
+        <div class="card__title">最新回</div>
+        <div id="latest-summary" class="muted">読み込み中…</div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">次回セット球 予測（学習型）</div>
+        <div id="set-prediction" class="muted">セット球も織り込み済み（第1回〜第666回）。追加するほど学習が更新されます。</div>
+        <div class="hint">
+          ※初期データは「当選データ＋セット球」を織り込み済み。追加/インポートで学習が更新されます。<br/>
+          ※宝くじはランダム性が高く、予測は保証されません。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">今週の1口（チューニング済み）</div>
+        <div id="recommendation" class="muted">生成中…</div>
+
+        <div class="row row--gap">
+          <button id="btn-generate" class="btn btn--primary">再生成</button>
+          <button id="btn-history" class="btn">履歴</button>
+        </div>
+
+        <div id="recommendation-meta" class="hint"></div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">学習状況</div>
+        <div id="learning-status" class="muted">読み込み中…</div>
+      </div>
+    </section>
+
+    <!-- ADD -->
+    <section id="view-add" class="view" aria-label="追加">
+      <div class="card">
+        <div class="card__title">結果を追加 / 更新</div>
+
+        <div class="grid">
+          <label class="field">
+            <span>開催回</span>
+            <input id="in-no" inputmode="numeric" placeholder="667" />
+          </label>
+          <label class="field">
+            <span>日付</span>
+            <input id="in-date" type="date" />
+          </label>
+          <label class="field">
+            <span>セット球</span>
+            <select id="in-set">
+              <option value="">（未入力）</option>
+              <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+              <option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>貼り付け（例）</span>
+          <textarea id="in-paste" rows="3" placeholder="02 17 18 22 23 25 33 + 16 34"></textarea>
+          <div class="hint">数字だけ貼ってOK。先頭7個が本数字、次の2個がボーナスになります。</div>
+        </label>
+
+        <div class="grid grid--numbers">
+          <div class="muted small">本数字（7個）</div>
+          <div></div>
+          <div class="muted small">ボーナス（2個）</div>
+
+          <div id="main-inputs" class="numbers"></div>
+          <div></div>
+          <div id="bonus-inputs" class="numbers numbers--bonus"></div>
+        </div>
+
+        <div class="row row--gap">
+          <button id="btn-apply-paste" class="btn">貼り付け反映</button>
+          <button id="btn-save" class="btn btn--primary">保存</button>
+        </div>
+
+        <div id="add-msg" class="hint"></div>
+      </div>
+    </section>
+
+    <!-- DATA -->
+    <section id="view-data" class="view" aria-label="データ">
+      <div class="card">
+        <div class="card__title">インポート / エクスポート</div>
+
+        <div class="row row--gap">
+          <label class="btn">
+            JSON/CSVをインポート
+            <input id="file-import" type="file" accept=".json,.csv,text/csv,application/json" hidden />
+          </label>
+          <button id="btn-export" class="btn">JSONを書き出し</button>
+        </div>
+
+        <details class="details">
+          <summary>CSVフォーマット（例）</summary>
+          <div class="hint">
+            1行目はヘッダ推奨。列名は自由ですが、以下のキーがあると自動で読めます。<br/>
+            <code>no,date,set,n1,n2,n3,n4,n5,n6,n7,b1,b2</code><br/>
+            セット球だけを入れたい場合は <code>no,set</code> だけでもOKです（既存の当選数字に上書きされません）。
+          </div>
+        </details>
+
+        <div id="data-msg" class="hint"></div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">データ一覧（直近20回）</div>
+        <div id="draw-list" class="muted">読み込み中…</div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view" aria-label="設定">
+      <div class="card">
+        <div class="card__title">生成ルール（1口/週向け）</div>
+
+        <div class="grid">
+          <label class="field">
+            <span>合計（本数字） 下限</span>
+            <input id="st-sum-min" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>合計（本数字） 上限</span>
+            <input id="st-sum-max" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>奇数の個数（本数字）</span>
+            <select id="st-odd-mode">
+              <option value="34">3〜4（おすすめ）</option>
+              <option value="4">4固定</option>
+              <option value="3">3固定</option>
+              <option value="2354">2〜5</option>
+              <option value="any">制限なし</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>32以上を最低</span>
+            <input id="st-min-high" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>前回一致（最小）</span>
+            <input id="st-overlap-min" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>前回一致（最大）</span>
+            <input id="st-overlap-max" inputmode="numeric" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span><input id="st-tertile" type="checkbox" /> 1-12 / 13-24 / 25-37 を最低1つずつ入れる</span>
+        </label>
+
+        <label class="field">
+          <span><input id="st-close" type="checkbox" /> 前回数字の「近い数字（±1/±2）」を少し優遇</span>
+        </label>
+
+        <div class="row row--gap">
+          <button id="btn-save-settings" class="btn btn--primary">設定を保存</button>
+          <button id="btn-reset" class="btn btn--danger">初期化</button>
+        </div>
+
+        <div class="hint">
+          ※ここは「当たりやすくする」ではなく、毎週の買い方を安定させるためのチューニングです。<br/>
+          ※セット球データが増えるほど、セット球予測とセット別の数字ウェイトが“学習”されます。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">セット球 予測ウェイト</div>
+        <div class="grid">
+          <label class="field">
+            <span>遷移（前→次）重視</span>
+            <input id="st-w-trans" inputmode="decimal" />
+          </label>
+          <label class="field">
+            <span>頻度重視</span>
+            <input id="st-w-freq" inputmode="decimal" />
+          </label>
+          <label class="field">
+            <span>待ち回数重視</span>
+            <input id="st-w-rec" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="hint small">3つの合計は自動で正規化されます。</div>
+      </div>
+    </section>
+
+    <!-- MODALS -->
+    <dialog id="dlg-about" class="dialog">
+      <div class="dialog__inner">
+        <h2>このアプリについて</h2>
+        <p>
+          ロト7の当選データ＋セット球（第1回〜第666回）を織り込んだうえで、<br/>
+          新しい結果を追加していくと「セット球予測」「セット別の数字傾向」が学習されていく、スマホ向けの簡易Webアプリです。
+        </p>
+        <ul>
+          <li>データは端末内（ブラウザ）に保存されます（サーバ不要）。</li>
+          <li>端末移行やバックアップは「JSONを書き出し」でOK。</li>
+          <li>宝くじはランダム性が高く、予測や推奨は当選を保証しません。</li>
+        </ul>
+        <div class="row row--gap">
+          <button id="btn-close-about" class="btn btn--primary">閉じる</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="dlg-history" class="dialog">
+      <div class="dialog__inner">
+        <h2>生成履歴（直近10件）</h2>
+        <div id="history-list" class="muted">まだありません。</div>
+        <div class="row row--gap">
+          <button id="btn-close-history" class="btn btn--primary">閉じる</button>
+        </div>
+      </div>
+    </dialog>
+
+  </main>
+
+  <nav class="app-nav" aria-label="ナビゲーション">
+    <button class="nav-btn nav-btn--active" data-view="home">ホーム</button>
+    <button class="nav-btn" data-view="add">追加</button>
+    <button class="nav-btn" data-view="data">データ</button>
+    <button class="nav-btn" data-view="settings">設定</button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
