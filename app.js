@@ -60,6 +60,16 @@ const DEFAULT_SETTINGS = {
 // ===== Utilities =====
 function $(id){ return document.getElementById(id); }
 
+function showFatalError(err){
+  const detail = (err && err.stack) ? err.stack : ((err && err.message) ? err.message : String(err));
+  const box = `<pre style="white-space:pre-wrap;word-break:break-word;margin:10px 0 0 0;padding:10px;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:rgba(0,0,0,.25)">${detail}</pre>`;
+  const ids = ["latest-summary","set-prediction","recommendation","learning-status","draw-list"];
+  for(const id of ids){
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = `<span class="badge">エラー</span><div class="hint" style="margin-top:8px">初期化に失敗しました。下の詳細をそのまま送ってください。</div>${box}`;
+  }
+}
+
 function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
 function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
 function uniq(arr){ return Array.from(new Set(arr)); }
@@ -175,6 +185,7 @@ async function loadBase(){
                        null;
     if(fromInline && fromInline.length){
       BASE_DRAWS = fromInline;
+      console.log('[loto7] inline base draws:', BASE_DRAWS.length);
       return;
     }
   }
@@ -186,6 +197,7 @@ async function loadBase(){
   }
   try{
     BASE_DRAWS = await res.json();
+    console.log('[loto7] fetched base draws:', Array.isArray(BASE_DRAWS)?BASE_DRAWS.length:'not array');
   }catch(e){
     throw new Error(`base_draws.json のJSON解析に失敗しました：${e?.message || e}`);
   }
@@ -1192,22 +1204,5 @@ async function boot(){
 
 boot().catch((err)=>{
   console.error(err);
-  const detail = (err && err.message) ? err.message : String(err);
-  const msg = [
-    "初期データの読み込みに失敗しました。",
-    "原因の多くは次のどれかです：",
-    "1）index.html をローカル（ファイル直開き）で見ている",
-    "2）base_draws.json / base_draws.js が同じフォルダに置けていない（404）",
-    "3）GitHub Pages ではなく github.com の画面を開いている",
-    "4）古いキャッシュ/Service Worker が残っている",
-    "—",
-    `詳細：`
-  ].join("\n");
-
-  const html = msg.replace(/\n/g, "<br/>");
-  const ids = ["latest-summary","set-prediction","recommendation","learning-status","draw-list"];
-  for(const id of ids){
-    const el = document.getElementById(id);
-    if(el) el.innerHTML = `<span class="badge">エラー</span><div class="hint" style="margin-top:8px"></div>`;
-  }
+  showFatalError(err);
 });
