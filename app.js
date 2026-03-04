@@ -159,7 +159,17 @@ let STATS = null;
 let SETTINGS = loadSettings();
 
 async function loadBase(){
-  const res = await fetch("base_draws.json");
+  // Prefer script-inlined data (works even when opened from local file).
+  if (typeof window !== "undefined" && Array.isArray(window.__BASE_DRAWS__) && window.__BASE_DRAWS__.length){
+    BASE_DRAWS = window.__BASE_DRAWS__;
+    return;
+  }
+
+  // Fallback: load JSON via fetch (works on GitHub Pages / normal hosting).
+  const res = await fetch("base_draws.json", { cache: "no-store" });
+  if(!res.ok){
+    throw new Error(`base_draws.json の読み込みに失敗しました（HTTP ）`);
+  }
   BASE_DRAWS = await res.json();
 }
 
@@ -1125,9 +1135,8 @@ function setupSettings(){
 }
 
 function setupServiceWorker(){
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
-  }
+  // serviceWorker disabled (cache issues on iOS)
+
 }
 
 // ===== Boot =====
@@ -1163,4 +1172,24 @@ async function boot(){
   refreshAll(true);
 }
 
-boot();
+boot().catch((err)=>{
+  console.error(err);
+  const detail = (err && err.message) ? err.message : String(err);
+  const msg = [
+    "初期データの読み込みに失敗しました。",
+    "原因の多くは次のどれかです：",
+    "1）index.html をローカル（ファイル直開き）で見ている",
+    "2）base_draws.json / base_draws.js が同じフォルダに置けていない（404）",
+    "3）GitHub Pages ではなく github.com の画面を開いている",
+    "4）古いキャッシュ/Service Worker が残っている",
+    "—",
+    `詳細：`
+  ].join("\n");
+
+  const html = msg.replace(/\n/g, "<br/>");
+  const ids = ["latest-summary","set-prediction","recommendation","learning-status","draw-list"];
+  for(const id of ids){
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = `<span class="badge">エラー</span><div class="hint" style="margin-top:8px"></div>`;
+  }
+});

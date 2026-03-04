@@ -1,10 +1,11 @@
 // very small offline cache
-const CACHE = "loto7-buddy-v1";
+const CACHE = "loto7-buddy-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./base_draws.js",
   "./base_draws.json",
   "./manifest.json",
   "./icons/icon-192.png",
