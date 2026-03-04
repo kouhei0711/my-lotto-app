@@ -9,6 +9,14 @@ const LS_USER_DRAWS = "loto7_user_draws_v1";
 const LS_SETTINGS = "loto7_settings_v1";
 const LS_HISTORY = "loto7_history_v1";
 
+// If a previous version registered a Service Worker, it can keep serving stale files.
+// This app prefers direct network loads, so we proactively unregister old SWs.
+try{
+  if(typeof navigator !== "undefined" && "serviceWorker" in navigator){
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
+  }
+}catch{}
+
 const SETS = ["A","B","C","D","E","F","G","H","I","J"];
 const NUM_MIN = 1;
 const NUM_MAX = 37;
@@ -160,17 +168,27 @@ let SETTINGS = loadSettings();
 
 async function loadBase(){
   // Prefer script-inlined data (works even when opened from local file).
-  if (typeof window !== "undefined" && Array.isArray(window.__BASE_DRAWS__) && window.__BASE_DRAWS__.length){
-    BASE_DRAWS = window.__BASE_DRAWS__;
-    return;
+  if (typeof window !== "undefined"){
+    // v4+: accept either __BASE_DRAWS__ (preferred) or legacy BASE_DRAWS.
+    const fromInline = (Array.isArray(window.__BASE_DRAWS__) && window.__BASE_DRAWS__) ||
+                       (Array.isArray(window.BASE_DRAWS) && window.BASE_DRAWS) ||
+                       null;
+    if(fromInline && fromInline.length){
+      BASE_DRAWS = fromInline;
+      return;
+    }
   }
 
   // Fallback: load JSON via fetch (works on GitHub Pages / normal hosting).
   const res = await fetch("base_draws.json", { cache: "no-store" });
   if(!res.ok){
-    throw new Error(`base_draws.json の読み込みに失敗しました（HTTP ）`);
+    throw new Error(`base_draws.json の読み込みに失敗しました（HTTP ${res.status}）`);
   }
-  BASE_DRAWS = await res.json();
+  try{
+    BASE_DRAWS = await res.json();
+  }catch(e){
+    throw new Error(`base_draws.json のJSON解析に失敗しました：${e?.message || e}`);
+  }
 }
 
 function mergeDraws(){
