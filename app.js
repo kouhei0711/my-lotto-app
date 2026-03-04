@@ -81,25 +81,28 @@ function safeJsonParse(str, fallback){
 }
 
 function loadSettings(){
-  const s = safeJsonParse(localStorage.getItem(LS_SETTINGS), null);
-  return Object.assign({}, DEFAULT_SETTINGS, s || {});
+  const raw = safeJsonParse(localStorage.getItem(LS_SETTINGS), null);
+  const obj = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+  return Object.assign({}, DEFAULT_SETTINGS, obj);
 }
 function saveSettings(s){
   localStorage.setItem(LS_SETTINGS, JSON.stringify(s));
 }
 
 function loadUserDraws(){
-  return safeJsonParse(localStorage.getItem(LS_USER_DRAWS), {});
+  const raw = safeJsonParse(localStorage.getItem(LS_USER_DRAWS), null);
+  return (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
 }
 function saveUserDraws(map){
   localStorage.setItem(LS_USER_DRAWS, JSON.stringify(map));
 }
 
 function loadHistory(){
-  return safeJsonParse(localStorage.getItem(LS_HISTORY), []);
+  const raw = safeJsonParse(localStorage.getItem(LS_HISTORY), null);
+  return Array.isArray(raw) ? raw : [];
 }
 function saveHistory(items){
-  localStorage.setItem(LS_HISTORY, JSON.stringify(items.slice(0, DEFAULT_SETTINGS.keepHistory)));
+  localStorage.setItem(LS_HISTORY, JSON.stringify(items.slice(0, (SETTINGS?.keepHistory ?? DEFAULT_SETTINGS.keepHistory))));
 }
 
 // YYYY-MM-DD to Date
